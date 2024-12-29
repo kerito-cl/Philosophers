@@ -6,7 +6,7 @@
 /*   By: mquero <mquero@student.hive.fi>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/12/22 13:19:39 by mquero            #+#    #+#             */
-/*   Updated: 2024/12/22 14:16:23 by mquero           ###   ########.fr       */
+/*   Updated: 2024/12/29 13:59:49 by mquero           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -29,7 +29,7 @@
 
 typedef struct s_pdata
 {
-    int n;
+    int *ph_n;
     pthread_mutex_t mutex;
     int forks;
 }			t_pdata;
@@ -39,6 +39,7 @@ void		freesplit(char **strs);
 char		**ft_split(char const *s, char c);
 size_t		ft_strlcpy(char *dst, const char *src, size_t size);
 char		*ft_strdup(const char *s);
-int	ft_atoi(const char *str);
+int	        ft_atoi(const char *str);
+void	parse(char **args);
 
 #endif

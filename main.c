@@ -6,7 +6,7 @@
 /*   By: mquero <mquero@student.hive.fi>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/12/22 09:36:16 by mquero            #+#    #+#             */
-/*   Updated: 2024/12/22 14:17:05 by mquero           ###   ########.fr       */
+/*   Updated: 2024/12/29 13:30:58 by mquero           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -35,8 +35,9 @@ int main(int argc, char **argv)
 
     int i;
 
-    if (argc < 2)
+    if (argc > 6 || argc < 5)
         return (0);
+    parse(argv);
     pthread_mutex_init(&pdata.mutex, NULL);
     pdata.forks = ft_atoi(argv[1]);
     philo = malloc(pdata.forks * sizeof(pthread_t));
