@@ -6,7 +6,7 @@
 /*   By: mquero <mquero@student.hive.fi>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/12/29 12:30:02 by mquero            #+#    #+#             */
-/*   Updated: 2024/12/29 13:30:10 by mquero           ###   ########.fr       */
+/*   Updated: 2024/12/30 11:09:33 by mquero           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,9 +14,9 @@
 
 int	check_errors(char **str, int i, int *j)
 {
-	if (str[i][*j] == '-' || str[i][*j] == '+')
+	if (str[i][*j] == '+')
 		*j = *j + 1;
-	if (((str[i][*j] < '0' || str[i][*j] > '9')) || *j > 11
+	if (((str[i][*j] < '0' || str[i][*j] > '9')) || *j > 11 || str[i][*j] == '-'
 		|| ft_atoi(str[i]) > INT_MAX || ft_atoi(str[i]) < INT_MIN)
 		return (0);
 	else
