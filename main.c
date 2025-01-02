@@ -6,7 +6,7 @@
 /*   By: mquero <mquero@student.hive.fi>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/12/22 09:36:16 by mquero            #+#    #+#             */
-/*   Updated: 2025/01/02 19:02:23 by mquero           ###   ########.fr       */
+/*   Updated: 2025/01/02 20:03:32 by mquero           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,22 +25,16 @@ void    pr_eat_action(t_pdata *pdata)
 
 void eat(t_pdata *pdata)
 {
-    t_pdata* temp;
-
-    if (pdata->next == 0)
-        temp = pdata - (pdata->index);
-    else
-        temp =  pdata;
     pthread_mutex_lock(&pdata->forks);
-    pthread_mutex_lock(&temp[pdata->next].forks);
+    pthread_mutex_lock(&pdata[pdata->next].forks);
     pr_eat_action(pdata);
+    printf("%d is eating\n", pdata->ph_n);
+    usleep(200000);
     pdata->left_fork = false;
     pdata->right_fork = false;
     pdata[pdata->next].right_fork = false;
-    pthread_mutex_unlock(&temp[pdata->next].forks);
+    pthread_mutex_unlock(&pdata[pdata->next].forks);
     pthread_mutex_unlock(&pdata->forks);
-    printf("%d is eating\n", pdata->ph_n);
-    usleep(200000);
     pdata->sleeping = true;
     printf("%d is sleeping\n", pdata->ph_n);
     usleep(200000);
@@ -79,7 +73,8 @@ void init_philo(t_pdata *pdata, int pcount, pthread_mutex_t *pr)
         i++;
         counter--;
     }
-    pdata[i - 1].next = 1 - counter;
+    pdata[i - 1].next = 1 - pcount;
+    //printf("%d", pdata[i - 1].next);
     pdata[i - 1].end = true;
     pdata[i - 1].right_fork = false;
 }
@@ -92,7 +87,7 @@ void* start_thread(void* arg)
     while (true)
     {
             printf("%d is thinking\n", pdata->ph_n);
-            eat(&pdata);
+            eat(pdata);
         //usleep(200000);
     }
     return NULL;
