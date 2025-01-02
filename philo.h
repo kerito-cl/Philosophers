@@ -6,7 +6,7 @@
 /*   By: mquero <mquero@student.hive.fi>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/12/22 13:19:39 by mquero            #+#    #+#             */
-/*   Updated: 2024/12/30 16:07:44 by mquero           ###   ########.fr       */
+/*   Updated: 2025/01/02 17:37:02 by mquero           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -30,12 +30,19 @@
 typedef struct s_pdata
 {
     pthread_mutex_t mutex;
-    pthread_mutex_t lfork;
-    pthread_mutex_t rfork;
+    pthread_mutex_t forks;
+    pthread_mutex_t *pr;
     int ph_n;
     int pcount;
+    int index;
+    int next;
     bool    left_fork;
     bool    right_fork;
+    bool    sleeping;
+    bool    thinking;
+    bool    eating;
+    bool    dead;
+    bool    end;
 }			t_pdata;
 
 char		*ft_strjoin(char const *s1, char const *s2);
