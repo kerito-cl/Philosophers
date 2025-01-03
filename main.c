@@ -6,38 +6,53 @@
 /*   By: mquero <mquero@student.hive.fi>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/12/22 09:36:16 by mquero            #+#    #+#             */
-/*   Updated: 2025/01/02 20:03:32 by mquero           ###   ########.fr       */
+/*   Updated: 2025/01/03 16:51:13 by mquero           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "philo.h"
 
-void    pr_eat_action(t_pdata *pdata)
+long long get_elapsed_time_ms(struct timeval start_time) 
+{
+    struct timeval current_time;
+    gettimeofday(&current_time, NULL);
+    
+    long long elapsed_seconds = current_time.tv_sec - start_time.tv_sec;
+    long long elapsed_microseconds = current_time.tv_usec - start_time.tv_usec;
+
+    return (elapsed_seconds * 1000) + (elapsed_microseconds / 1000);
+}
+
+void    pr_eat_action(t_pdata *pdata, long long ms)
 {
         pthread_mutex_lock(pdata->pr);
         pdata->left_fork = true;
         pdata->right_fork = true;
         pdata[pdata->next].right_fork = true;
+        printf("%lld ", ms);
         printf("%d has taken a fork\n", pdata->ph_n);
+        printf("%lld ", ms);
         printf("%d has taken a fork\n", pdata->ph_n);
         pthread_mutex_unlock(pdata->pr);
 }
 
-void eat(t_pdata *pdata)
+void eat(t_pdata *pdata, long long ms)
 {
     pthread_mutex_lock(&pdata->forks);
     pthread_mutex_lock(&pdata[pdata->next].forks);
-    pr_eat_action(pdata);
+    pr_eat_action(pdata, ms);
+    printf("%lld ", ms);
     printf("%d is eating\n", pdata->ph_n);
-    usleep(200000);
+    usleep(pdata->timetoeat);
     pdata->left_fork = false;
     pdata->right_fork = false;
     pdata[pdata->next].right_fork = false;
     pthread_mutex_unlock(&pdata[pdata->next].forks);
     pthread_mutex_unlock(&pdata->forks);
     pdata->sleeping = true;
+    printf("%lld ", ms);
     printf("%d is sleeping\n", pdata->ph_n);
-    usleep(200000);
+    usleep(pdata->timetosleep);
 }
 int len(t_pdata *pdata)
 {
@@ -48,7 +63,7 @@ int len(t_pdata *pdata)
         counter++;
     return (counter + 1);
 }
-void init_philo(t_pdata *pdata, int pcount, pthread_mutex_t *pr)
+void init_philo(t_pdata *pdata, int pcount, pthread_mutex_t *pr, char **argv)
 {
     int i;
     int counter;
@@ -70,11 +85,15 @@ void init_philo(t_pdata *pdata, int pcount, pthread_mutex_t *pr)
         pdata[i].eating = false;
         pdata[i].thinking = false;
         pdata[i].end = false;
+        pdata[i].timetosleep = ft_atoi(argv[4]) * 1000;
+        pdata[i].timetoeat = ft_atoi(argv[3]) * 1000;
+        pdata[i].timetodie = ft_atoi(argv[2]) * 1000;
+        pdata[i].checkifdead = ft_atoi(argv[2]) * 1000;
+
         i++;
         counter--;
     }
     pdata[i - 1].next = 1 - pcount;
-    //printf("%d", pdata[i - 1].next);
     pdata[i - 1].end = true;
     pdata[i - 1].right_fork = false;
 }
@@ -82,12 +101,30 @@ void init_philo(t_pdata *pdata, int pcount, pthread_mutex_t *pr)
 void* start_thread(void* arg) 
 {
     t_pdata* pdata = (t_pdata*)arg;
-    int counter;
+    int start_time;
+    int current_time;
+    long long ms;
+
+    gettimeofday(&pdata->tv, NULL);
+    start_time = pdata->tv.tv_sec;
+    //time = pdata->tv.tv_sec - time;
 
     while (true)
     {
-            printf("%d is thinking\n", pdata->ph_n);
-            eat(pdata);
+        //gettimeofday(&pdata->tv, NULL);
+        pthread_mutex_lock(pdata->pr);
+        ms = get_elapsed_time_ms(pdata->tv);
+        printf("%lld ", ms);
+        printf("%d is thinking\n", pdata->ph_n);
+        pthread_mutex_unlock(pdata->pr);
+        eat(pdata, ms);
+        /*if (gettimeofday(&pdata->tv, NULL) == 0) 
+        {
+            pdata->checkifdead = pdata->checkifdead - pdata->tv.tv_sec;
+            printf("Microseconds: %u\n", );
+        } else {
+            perror("gettimeofday failed");
+        }*/
         //usleep(200000);
     }
     return NULL;
@@ -97,7 +134,6 @@ int main(int argc, char **argv)
 {
     pthread_t *philo;
     t_pdata *pdata;
-    struct timeval tv;
     int pcount;
     pthread_mutex_t pr;
     int i;
@@ -108,8 +144,9 @@ int main(int argc, char **argv)
     pcount = ft_atoi(argv[1]);
     pdata = malloc(sizeof(t_pdata) * pcount + 2);
     pdata->pcount = pcount;
-    init_philo(pdata, pcount, &pr);
+    init_philo(pdata, pcount, &pr,argv);
     philo = malloc(pcount * sizeof(pthread_t));
+
     i = 0; 
     while (i < pcount)
     {
@@ -129,12 +166,6 @@ int main(int argc, char **argv)
         i++;
     }
     pthread_mutex_destroy(&pr);
-    /*if (gettimeofday(&tv, NULL) == 0) {
-        printf("Seconds since Epoch: %ld\n", tv.tv_sec);
-        printf("Microseconds: %ld\n", tv.tv_usec);
-    } else {
-        perror("gettimeofday failed");
-    }*/
     //pthread_mutex_destroy(&pdata->lfork);
     return 0;
 }
