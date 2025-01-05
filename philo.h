@@ -6,7 +6,7 @@
 /*   By: mquero <mquero@student.hive.fi>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/12/22 13:19:39 by mquero            #+#    #+#             */
-/*   Updated: 2025/01/03 13:58:57 by mquero           ###   ########.fr       */
+/*   Updated: 2025/01/05 14:14:29 by mquero           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -42,7 +42,7 @@ typedef struct s_pdata
     bool    sleeping;
     bool    thinking;
     bool    eating;
-    bool    dead;
+    bool    *dead;
     bool    end;
     unsigned int    timetosleep;
     unsigned int    timetoeat;
