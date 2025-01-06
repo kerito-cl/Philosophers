@@ -6,7 +6,7 @@
 /*   By: mquero <mquero@student.hive.fi>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/12/22 09:36:16 by mquero            #+#    #+#             */
-/*   Updated: 2025/01/06 19:32:46 by mquero           ###   ########.fr       */
+/*   Updated: 2025/01/06 23:03:01 by mquero           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -63,34 +63,35 @@ void    pr_eat_action(t_pdata *pdata, long long ms)
         pthread_mutex_unlock(pdata->pr);
 }
 
-void eat(t_pdata *pdata, long long ms)
+void eat(t_pdata *pdata, long long ms, long long *deathcounter)
 {
     bool    flag;
     int     chunks_of_sleep;
     int     chunks_of_eat;
-    long long deathcounter;
 
-    chunks_of_sleep = pdata->timetosleep / 1000;
-    chunks_of_eat = pdata->timetoeat / 1000;
+    chunks_of_sleep = pdata->timetosleep;
+    chunks_of_eat = pdata->timetoeat;
     flag = false;
-    deathcounter = pdata->timetodie;
     while (flag == false)
-        death_checker(pdata, &deathcounter, &flag);
+        death_checker(pdata, deathcounter, &flag);
     pthread_mutex_lock(&pdata->forks);
     pthread_mutex_lock(&pdata[pdata->next].forks);
     pr_eat_action(pdata, ms);
     ms = get_elapsed_time_ms(pdata->tv);
     gettimeofday(&pdata->checkifdead, NULL);
-    deathcounter = pdata->timetodie;
+    *deathcounter = pdata->timetodie;
     if (chunks_of_eat <= pdata->timetodie)
-        usleep(pdata->timetoeat);
+    {
+        usleep(pdata->timetoeat * 1000);
+        death_checker(pdata, deathcounter, &flag);
+    }
     else
     {
         while (chunks_of_eat >= 0)
         {
             chunks_of_eat = chunks_of_eat - pdata->timetodie;
             usleep(pdata->timetodie * 1000);
-            death_checker(pdata, &deathcounter, &flag);
+            death_checker(pdata, deathcounter, &flag);
         }
     }
     pthread_mutex_unlock(&pdata[pdata->next].forks);
@@ -100,14 +101,21 @@ void eat(t_pdata *pdata, long long ms)
     ms = get_elapsed_time_ms(pdata->tv);
     printf("%lld ", ms);
     printf("%d is sleeping\n", pdata->ph_n);
-
     pthread_mutex_unlock(pdata->pr);
+    if (pdata->timetodie > (pdata->timetoeat + pdata->timetosleep))
+    {
+            usleep(pdata->timetosleep * 1000);
+            *deathcounter = pdata->timetodie;
+    }
+    else
+    {
         while (chunks_of_sleep >= 0)
         {
-            chunks_of_sleep = chunks_of_sleep - 100;
-            usleep(deathcounter *1000);
-            death_checker(pdata, &deathcounter, &flag);
+            chunks_of_sleep = chunks_of_sleep - *deathcounter;
+            usleep(*deathcounter * 1000);
+            death_checker(pdata, deathcounter, &flag);
         }
+    }
 }
 
 void init_philo(t_pdata *pdata, bool *death, pthread_mutex_t *pr, char **argv)
@@ -124,8 +132,8 @@ void init_philo(t_pdata *pdata, bool *death, pthread_mutex_t *pr, char **argv)
         pdata[i].ph_n = i + 1;
         pdata[i].next = 1;
         pdata[i].dead = death;
-        pdata[i].timetosleep = ft_atoi(argv[4]) * 1000;
-        pdata[i].timetoeat = ft_atoi(argv[3]) * 1000;
+        pdata[i].timetosleep = ft_atoi(argv[4]);
+        pdata[i].timetoeat = ft_atoi(argv[3]);
         pdata[i].timetodie = ft_atoi(argv[2]);
         i++;
         counter--;
@@ -138,7 +146,9 @@ void* start_thread(void* arg)
     t_pdata* pdata = (t_pdata*)arg;
     long long ms;
     bool    flag;
+    long long deathcounter;
 
+    deathcounter = pdata->timetodie;
     gettimeofday(&pdata->tv, NULL);
     gettimeofday(&pdata->checkifdead, NULL);
     while (true)
@@ -149,11 +159,11 @@ void* start_thread(void* arg)
         printf("%d is thinking\n", pdata->ph_n);
         pthread_mutex_unlock(pdata->pr);
         if (pdata->ph_n % 2 == 1)
-            eat(pdata, ms);
+            eat(pdata, ms, &deathcounter);
         else
         {
             usleep(200);
-            eat(pdata, ms);
+            eat(pdata, ms, &deathcounter);
         }
     }
     return NULL;
