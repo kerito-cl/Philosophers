@@ -6,7 +6,7 @@
 /*   By: mquero <mquero@student.hive.fi>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/12/22 13:19:39 by mquero            #+#    #+#             */
-/*   Updated: 2025/01/05 14:14:29 by mquero           ###   ########.fr       */
+/*   Updated: 2025/01/06 18:51:03 by mquero           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -33,6 +33,7 @@ typedef struct s_pdata
     pthread_mutex_t forks;
     pthread_mutex_t *pr;
     struct timeval tv;
+    struct timeval checkifdead;
     int ph_n;
     int pcount;
     int index;
@@ -47,7 +48,8 @@ typedef struct s_pdata
     unsigned int    timetosleep;
     unsigned int    timetoeat;
     unsigned int    timetodie;
-    unsigned int    checkifdead;
+    long long    deathcounter;
+
 }			t_pdata;
 
 char		*ft_strjoin(char const *s1, char const *s2);

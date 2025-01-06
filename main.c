@@ -6,7 +6,7 @@
 /*   By: mquero <mquero@student.hive.fi>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/12/22 09:36:16 by mquero            #+#    #+#             */
-/*   Updated: 2025/01/05 14:38:33 by mquero           ###   ########.fr       */
+/*   Updated: 2025/01/06 19:32:46 by mquero           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -24,11 +24,36 @@ long long get_elapsed_time_ms(struct timeval start_time)
     return (elapsed_seconds * 1000) + (elapsed_microseconds / 1000);
 }
 
+
+void death_checker(t_pdata *pdata, long long *deathcounter , bool *flag) 
+{
+    long long ms_death;
+    long long ms;
+
+    ms_death = get_elapsed_time_ms(pdata->checkifdead);
+    //deathcounter = pdata->timetodie;
+    *deathcounter = *deathcounter - ms_death;
+    if (*deathcounter <= 0)
+    {
+        ms = get_elapsed_time_ms(pdata->tv);
+        pthread_mutex_lock(pdata->pr);
+        if (*pdata->dead == false)
+        {
+            *pdata->dead = true;
+            printf("%lld ", ms);
+            printf("%d died\n", pdata->ph_n);
+            exit(1);
+            pthread_mutex_unlock(pdata->pr);
+        }
+    }
+    if (ms_death >= (pdata->timetodie / 1000))
+        *flag = true;
+}
+
 void    pr_eat_action(t_pdata *pdata, long long ms)
 {
         pthread_mutex_lock(pdata->pr);
         ms = get_elapsed_time_ms(pdata->tv);
-        pdata->dead = pdata->dead - ms;
         printf("%lld ", ms);
         printf("%d has taken a fork\n", pdata->ph_n);
         printf("%lld ", ms);
@@ -40,13 +65,34 @@ void    pr_eat_action(t_pdata *pdata, long long ms)
 
 void eat(t_pdata *pdata, long long ms)
 {
+    bool    flag;
+    int     chunks_of_sleep;
+    int     chunks_of_eat;
+    long long deathcounter;
+
+    chunks_of_sleep = pdata->timetosleep / 1000;
+    chunks_of_eat = pdata->timetoeat / 1000;
+    flag = false;
+    deathcounter = pdata->timetodie;
+    while (flag == false)
+        death_checker(pdata, &deathcounter, &flag);
     pthread_mutex_lock(&pdata->forks);
     pthread_mutex_lock(&pdata[pdata->next].forks);
     pr_eat_action(pdata, ms);
     ms = get_elapsed_time_ms(pdata->tv);
-    pdata->checkifdead = pdata->checkifdead - ms;
-    usleep(pdata->timetoeat);
-    pdata->checkifdead = pdata->timetodie;
+    gettimeofday(&pdata->checkifdead, NULL);
+    deathcounter = pdata->timetodie;
+    if (chunks_of_eat <= pdata->timetodie)
+        usleep(pdata->timetoeat);
+    else
+    {
+        while (chunks_of_eat >= 0)
+        {
+            chunks_of_eat = chunks_of_eat - pdata->timetodie;
+            usleep(pdata->timetodie * 1000);
+            death_checker(pdata, &deathcounter, &flag);
+        }
+    }
     pthread_mutex_unlock(&pdata[pdata->next].forks);
     pthread_mutex_unlock(&pdata->forks);
 
@@ -54,8 +100,14 @@ void eat(t_pdata *pdata, long long ms)
     ms = get_elapsed_time_ms(pdata->tv);
     printf("%lld ", ms);
     printf("%d is sleeping\n", pdata->ph_n);
+
     pthread_mutex_unlock(pdata->pr);
-    usleep(pdata->timetosleep);
+        while (chunks_of_sleep >= 0)
+        {
+            chunks_of_sleep = chunks_of_sleep - 100;
+            usleep(deathcounter *1000);
+            death_checker(pdata, &deathcounter, &flag);
+        }
 }
 
 void init_philo(t_pdata *pdata, bool *death, pthread_mutex_t *pr, char **argv)
@@ -75,7 +127,6 @@ void init_philo(t_pdata *pdata, bool *death, pthread_mutex_t *pr, char **argv)
         pdata[i].timetosleep = ft_atoi(argv[4]) * 1000;
         pdata[i].timetoeat = ft_atoi(argv[3]) * 1000;
         pdata[i].timetodie = ft_atoi(argv[2]);
-        pdata[i].checkifdead = ft_atoi(argv[2]);
         i++;
         counter--;
     }
@@ -86,17 +137,13 @@ void* start_thread(void* arg)
 {
     t_pdata* pdata = (t_pdata*)arg;
     long long ms;
+    bool    flag;
 
     gettimeofday(&pdata->tv, NULL);
+    gettimeofday(&pdata->checkifdead, NULL);
     while (true)
     {
-        if (pdata->checkifdead <= 0)
-        {
-            printf("%d is dead\n", pdata->ph_n);
-            exit(1);
-        }
         ms = get_elapsed_time_ms(pdata->tv);
-        pdata->checkifdead = pdata->checkifdead - ms;
         pthread_mutex_lock(pdata->pr);
         printf("%lld ", ms);
         printf("%d is thinking\n", pdata->ph_n);
@@ -131,6 +178,7 @@ int main(int argc, char **argv)
     init_philo(pdata, &death, &pr, argv);
     philo = malloc(pcount * sizeof(pthread_t) + 1);
 
+    death = false;
     i = 0; 
     while (i < pcount)
     {
