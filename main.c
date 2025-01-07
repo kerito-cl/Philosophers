@@ -6,7 +6,7 @@
 /*   By: mquero <mquero@student.hive.fi>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/12/22 09:36:16 by mquero            #+#    #+#             */
-/*   Updated: 2025/01/07 18:04:35 by mquero           ###   ########.fr       */
+/*   Updated: 2025/01/08 00:09:31 by mquero           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -69,17 +69,24 @@ void eat(t_pdata *pdata, long long ms, long long *deathcounter)
     chunks_of_sleep = pdata->timetosleep;
     chunks_of_eat = pdata->timetoeat;
 
-    while(pdata[pdata->next].flag == true)
+    pthread_mutex_lock(pdata->flag_mutex);
+    while(pdata[pdata->next].flag || pdata[pdata->prev].flag)
+    {
+        pthread_mutex_unlock(pdata->flag_mutex);
         death_checker(pdata, deathcounter);
+        pthread_mutex_lock(pdata->flag_mutex);
+    }
+    pthread_mutex_unlock(pdata->flag_mutex);
+
+
     pthread_mutex_lock(&pdata->forks);
-    while(pdata[pdata->next].flag == true)
-        death_checker(pdata, deathcounter);
+    pthread_mutex_lock(pdata->flag_mutex);
+    pdata->flag = true;
+    pthread_mutex_unlock(pdata->flag_mutex);
     pthread_mutex_lock(&pdata[pdata->next].forks);
-    death_checker(pdata, deathcounter);
     pr_eat_action(pdata, ms);
     ms = get_elapsed_time_ms(pdata->tv);
     gettimeofday(&pdata->checkifdead, NULL);
-    pdata->flag = true;
     if (chunks_of_eat <= pdata->timetodie)
     {
         usleep(pdata->timetoeat * 1000);
@@ -94,7 +101,9 @@ void eat(t_pdata *pdata, long long ms, long long *deathcounter)
             death_checker(pdata, deathcounter);
         }
     }
+    pthread_mutex_lock(pdata->flag_mutex);
     pdata->flag = false;
+    pthread_mutex_unlock(pdata->flag_mutex);
     pthread_mutex_lock(pdata->pr);
     ms = get_elapsed_time_ms(pdata->tv);
     printf("%lld ", ms);
@@ -129,6 +138,7 @@ void init_philo(t_pdata *pdata, bool *death, pthread_mutex_t *pr, char **argv)
         pdata[i].pr = pr;
         pdata[i].ph_n = i + 1;
         pdata[i].next = 1;
+        pdata[i].prev = -1;
         pdata[i].dead = death;
         pdata[i].flag = false;
         pdata[i].timetosleep = ft_atoi(argv[4]);
@@ -137,6 +147,7 @@ void init_philo(t_pdata *pdata, bool *death, pthread_mutex_t *pr, char **argv)
         i++;
         counter--;
     }
+    pdata[0].prev = i - 1;
     pdata[i - 1].next = 1 - i;
 }
 
@@ -173,6 +184,7 @@ int main(int argc, char **argv)
     pthread_t *philo;
     t_pdata *pdata;
     pthread_mutex_t pr;
+    pthread_mutex_t flag;
     bool    death;
     int i;
     int pcount;
@@ -184,6 +196,7 @@ int main(int argc, char **argv)
     pdata = malloc(sizeof(t_pdata) * pcount);
     pdata->pcount = pcount;
     pthread_mutex_init(&pr, NULL);
+    pthread_mutex_init(&flag, NULL);
     init_philo(pdata, &death, &pr, argv);
     philo = malloc(pcount * sizeof(pthread_t) + 1);
 
@@ -191,6 +204,7 @@ int main(int argc, char **argv)
     i = 0; 
     while (i < pcount)
     {
+        pdata[i].flag_mutex = &flag;
         pthread_create(&philo[i], NULL, start_thread, pdata + i);
         i++;
     }
