@@ -6,7 +6,7 @@
 /*   By: mquero <mquero@student.hive.fi>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/12/22 09:36:16 by mquero            #+#    #+#             */
-/*   Updated: 2025/01/06 23:03:01 by mquero           ###   ########.fr       */
+/*   Updated: 2025/01/07 18:04:35 by mquero           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,13 +25,13 @@ long long get_elapsed_time_ms(struct timeval start_time)
 }
 
 
-void death_checker(t_pdata *pdata, long long *deathcounter , bool *flag) 
+void death_checker(t_pdata *pdata, long long *deathcounter) 
 {
     long long ms_death;
     long long ms;
 
     ms_death = get_elapsed_time_ms(pdata->checkifdead);
-    //deathcounter = pdata->timetodie;
+    *deathcounter = pdata->timetodie;
     *deathcounter = *deathcounter - ms_death;
     if (*deathcounter <= 0)
     {
@@ -46,8 +46,6 @@ void death_checker(t_pdata *pdata, long long *deathcounter , bool *flag)
             pthread_mutex_unlock(pdata->pr);
         }
     }
-    if (ms_death >= (pdata->timetodie / 1000))
-        *flag = true;
 }
 
 void    pr_eat_action(t_pdata *pdata, long long ms)
@@ -65,25 +63,27 @@ void    pr_eat_action(t_pdata *pdata, long long ms)
 
 void eat(t_pdata *pdata, long long ms, long long *deathcounter)
 {
-    bool    flag;
     int     chunks_of_sleep;
     int     chunks_of_eat;
 
     chunks_of_sleep = pdata->timetosleep;
     chunks_of_eat = pdata->timetoeat;
-    flag = false;
-    while (flag == false)
-        death_checker(pdata, deathcounter, &flag);
+
+    while(pdata[pdata->next].flag == true)
+        death_checker(pdata, deathcounter);
     pthread_mutex_lock(&pdata->forks);
+    while(pdata[pdata->next].flag == true)
+        death_checker(pdata, deathcounter);
     pthread_mutex_lock(&pdata[pdata->next].forks);
+    death_checker(pdata, deathcounter);
     pr_eat_action(pdata, ms);
     ms = get_elapsed_time_ms(pdata->tv);
     gettimeofday(&pdata->checkifdead, NULL);
-    *deathcounter = pdata->timetodie;
+    pdata->flag = true;
     if (chunks_of_eat <= pdata->timetodie)
     {
         usleep(pdata->timetoeat * 1000);
-        death_checker(pdata, deathcounter, &flag);
+        death_checker(pdata, deathcounter);
     }
     else
     {
@@ -91,29 +91,27 @@ void eat(t_pdata *pdata, long long ms, long long *deathcounter)
         {
             chunks_of_eat = chunks_of_eat - pdata->timetodie;
             usleep(pdata->timetodie * 1000);
-            death_checker(pdata, deathcounter, &flag);
+            death_checker(pdata, deathcounter);
         }
     }
-    pthread_mutex_unlock(&pdata[pdata->next].forks);
-    pthread_mutex_unlock(&pdata->forks);
-
+    pdata->flag = false;
     pthread_mutex_lock(pdata->pr);
     ms = get_elapsed_time_ms(pdata->tv);
     printf("%lld ", ms);
     printf("%d is sleeping\n", pdata->ph_n);
     pthread_mutex_unlock(pdata->pr);
+    pthread_mutex_unlock(&pdata[pdata->next].forks);
+    pthread_mutex_unlock(&pdata->forks);
+
     if (pdata->timetodie > (pdata->timetoeat + pdata->timetosleep))
-    {
             usleep(pdata->timetosleep * 1000);
-            *deathcounter = pdata->timetodie;
-    }
     else
     {
         while (chunks_of_sleep >= 0)
         {
             chunks_of_sleep = chunks_of_sleep - *deathcounter;
             usleep(*deathcounter * 1000);
-            death_checker(pdata, deathcounter, &flag);
+            death_checker(pdata, deathcounter);
         }
     }
 }
@@ -132,6 +130,7 @@ void init_philo(t_pdata *pdata, bool *death, pthread_mutex_t *pr, char **argv)
         pdata[i].ph_n = i + 1;
         pdata[i].next = 1;
         pdata[i].dead = death;
+        pdata[i].flag = false;
         pdata[i].timetosleep = ft_atoi(argv[4]);
         pdata[i].timetoeat = ft_atoi(argv[3]);
         pdata[i].timetodie = ft_atoi(argv[2]);

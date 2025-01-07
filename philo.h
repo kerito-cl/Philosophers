@@ -6,7 +6,7 @@
 /*   By: mquero <mquero@student.hive.fi>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/12/22 13:19:39 by mquero            #+#    #+#             */
-/*   Updated: 2025/01/06 18:51:03 by mquero           ###   ########.fr       */
+/*   Updated: 2025/01/07 17:56:54 by mquero           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -38,13 +38,8 @@ typedef struct s_pdata
     int pcount;
     int index;
     int next;
-    bool    left_fork;
-    bool    right_fork;
-    bool    sleeping;
-    bool    thinking;
-    bool    eating;
     bool    *dead;
-    bool    end;
+    bool    flag;
     unsigned int    timetosleep;
     unsigned int    timetoeat;
     unsigned int    timetodie;
