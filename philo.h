@@ -6,7 +6,7 @@
 /*   By: mquero <mquero@student.hive.fi>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/12/22 13:19:39 by mquero            #+#    #+#             */
-/*   Updated: 2025/01/07 21:57:27 by mquero           ###   ########.fr       */
+/*   Updated: 2025/01/08 17:03:25 by mquero           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -32,6 +32,7 @@ typedef struct s_pdata
     pthread_mutex_t *flag_mutex;
     pthread_mutex_t forks;
     pthread_mutex_t *pr;
+    unsigned int    *queue;
     struct timeval tv;
     struct timeval checkifdead;
     int ph_n;
@@ -41,6 +42,7 @@ typedef struct s_pdata
     int prev;
     bool    *dead;
     bool    flag;
+    bool    thinking;
     unsigned int    timetosleep;
     unsigned int    timetoeat;
     unsigned int    timetodie;
