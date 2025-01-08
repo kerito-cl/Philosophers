@@ -6,7 +6,7 @@
 /*   By: mquero <mquero@student.hive.fi>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/12/22 09:36:16 by mquero            #+#    #+#             */
-/*   Updated: 2025/01/08 17:31:01 by mquero           ###   ########.fr       */
+/*   Updated: 2025/01/08 18:44:47 by mquero           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,7 +25,7 @@ long long get_elapsed_time_ms(struct timeval start_time)
 }
 
 
-void death_checker(t_pdata *pdata, long long *deathcounter) 
+bool death_checker(t_pdata *pdata, long long *deathcounter) 
 {
     long long ms_death;
     long long ms;
@@ -42,10 +42,18 @@ void death_checker(t_pdata *pdata, long long *deathcounter)
             *pdata->dead = true;
             printf("%lld ", ms);
             printf("%d died\n", pdata->ph_n);
-            exit(1);
         }
         pthread_mutex_unlock(pdata->pr);
+        return(true);
     }
+    pthread_mutex_lock(pdata->pr);
+    if (*pdata->dead == true)
+    {
+        pthread_mutex_unlock(pdata->pr);
+        return (true);
+    }
+    pthread_mutex_unlock(pdata->pr);
+    return (false);
 }
 
 void    pr_eat_action(t_pdata *pdata, long long ms)
@@ -54,7 +62,6 @@ void    pr_eat_action(t_pdata *pdata, long long ms)
         pthread_mutex_lock(pdata->flag_mutex);
         pdata->thinking = false;
         pthread_mutex_unlock(pdata->flag_mutex);
-        pdata->thinking = false;
         ms = get_elapsed_time_ms(pdata->tv);
         printf("%lld ", ms);
         printf("%d has taken a fork\n", pdata->ph_n);
@@ -65,7 +72,7 @@ void    pr_eat_action(t_pdata *pdata, long long ms)
         pthread_mutex_unlock(pdata->pr);
 }
 
-void eat(t_pdata *pdata, long long ms, long long *deathcounter, unsigned int queue)
+bool eat_and_sleep(t_pdata *pdata, long long ms, long long *deathcounter)
 {
     int     chunks_of_sleep;
     int     chunks_of_eat;
@@ -76,19 +83,20 @@ void eat(t_pdata *pdata, long long ms, long long *deathcounter, unsigned int que
     pthread_mutex_lock(pdata->flag_mutex);
     while(pdata[pdata->next].thinking || pdata[pdata->prev].thinking)
     {
-        
         pthread_mutex_unlock(pdata->flag_mutex);
-        death_checker(pdata, deathcounter);
+        if (death_checker(pdata, deathcounter))
+            return (false);
         pthread_mutex_lock(pdata->flag_mutex);
     }
+
     pthread_mutex_unlock(pdata->flag_mutex);
 
     pthread_mutex_lock(pdata->flag_mutex);
     while(pdata[pdata->next].flag || pdata[pdata->prev].flag)
     {
-        
         pthread_mutex_unlock(pdata->flag_mutex);
-        death_checker(pdata, deathcounter);
+        if (death_checker(pdata, deathcounter))
+            return (false);
         pthread_mutex_lock(pdata->flag_mutex);
     }
     pthread_mutex_unlock(pdata->flag_mutex);
@@ -108,7 +116,12 @@ void eat(t_pdata *pdata, long long ms, long long *deathcounter, unsigned int que
     if (chunks_of_eat <= pdata->timetodie)
     {
         usleep(pdata->timetoeat * 1000);
-        death_checker(pdata, deathcounter);
+        if (death_checker(pdata, deathcounter))
+        {
+            pthread_mutex_unlock(&pdata->forks);
+            pthread_mutex_unlock(&pdata[pdata->next].forks);
+            return (false);
+        }
     }
     else
     {
@@ -116,7 +129,12 @@ void eat(t_pdata *pdata, long long ms, long long *deathcounter, unsigned int que
         {
             chunks_of_eat = chunks_of_eat - pdata->timetodie;
             usleep(pdata->timetodie * 1000);
-            death_checker(pdata, deathcounter);
+            if (death_checker(pdata, deathcounter))
+            {
+                pthread_mutex_unlock(&pdata->forks);
+                pthread_mutex_unlock(&pdata[pdata->next].forks);
+                return (false);
+            }
         }
     }
 
@@ -125,6 +143,13 @@ void eat(t_pdata *pdata, long long ms, long long *deathcounter, unsigned int que
     pthread_mutex_unlock(pdata->flag_mutex);
 
     pthread_mutex_lock(pdata->pr);
+    if (*pdata->dead)
+    {
+        pthread_mutex_unlock(pdata->pr);
+        pthread_mutex_unlock(&pdata[pdata->next].forks);
+        pthread_mutex_unlock(&pdata->forks);
+        return (true);
+    }
     ms = get_elapsed_time_ms(pdata->tv);
     printf("%lld ", ms);
     printf("%d is sleeping\n", pdata->ph_n);
@@ -143,6 +168,7 @@ void eat(t_pdata *pdata, long long ms, long long *deathcounter, unsigned int que
             death_checker(pdata, deathcounter);
         }
     }
+    return (true);
 }
 
 
@@ -150,29 +176,37 @@ void* start_thread(void* arg)
 {
     t_pdata* pdata = (t_pdata*)arg;
     long long ms;
-    bool    flag;
     long long deathcounter;
-    unsigned int     queue;
 
     deathcounter = pdata->timetodie;
-    queue = 0;
     gettimeofday(&pdata->tv, NULL);
     gettimeofday(&pdata->checkifdead, NULL);
     while (true)
     {
         ms = get_elapsed_time_ms(pdata->tv);
         pthread_mutex_lock(pdata->pr);
+        if (*pdata->dead)
+        {
+            pthread_mutex_unlock(pdata->pr);
+            return (NULL);
+        }
         printf("%lld ", ms);
         printf("%d is thinking\n", pdata->ph_n);
         pthread_mutex_unlock(pdata->pr);
         if (pdata->ph_n % 2 == 1)
-            eat(pdata, ms, &deathcounter, queue);
+        {
+            if (!eat_and_sleep(pdata, ms, &deathcounter))
+                return (NULL);
+        }
         else
         {
             usleep(200);
-            eat(pdata, ms, &deathcounter, queue);
+            if (!eat_and_sleep(pdata, ms, &deathcounter))
+                return (NULL);
         }
+        pthread_mutex_lock(pdata->flag_mutex);
         pdata->thinking = true;
+        pthread_mutex_unlock(pdata->flag_mutex);
     }
     return NULL;
 }
