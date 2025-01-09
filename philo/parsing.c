@@ -6,7 +6,7 @@
 /*   By: mquero <mquero@student.hive.fi>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/12/29 12:30:02 by mquero            #+#    #+#             */
-/*   Updated: 2024/12/30 11:09:33 by mquero           ###   ########.fr       */
+/*   Updated: 2025/01/09 16:02:52 by mquero           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -45,9 +45,9 @@ int	check_nums_case(char **str)
 
 void	parse(char **args)
 {
-    if (check_nums_case(args) == 0)
-    {
-        write(2, "Error\n", 6);
-        exit(1);
-    }
+	if (check_nums_case(args) == 0)
+	{
+		write(2, "Error\n", 6);
+		exit(1);
+	}
 }
